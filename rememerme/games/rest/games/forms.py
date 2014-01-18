@@ -76,15 +76,15 @@ class GamesPostForm(forms.Form):
                 UserClient(request.auth).get(mem)
                 # user exists so let's add him/her
                 now = datetime.datetime.now()
-                member = GameMember(game_id=UUID(game.game_id), user_id=UUID(mem), status=0, date_created=now, last_modified=now)
+                member = GameMember(game_member_id=uuid.uuid1(), game_id=UUID(game.game_id), user_id=UUID(mem), status=0, date_created=now, last_modified=now)
                 member.save()
                 members_added[member.game_member_id] = now
             except ValueError, UserClientError:
                 continue
        
-        member = GameMember(game_id=UUID(game.game_id), user_id=UUID(request.user.pk), status=0, date_created=now, last_modified=now)
+        member = GameMember(game_member_id=uuid.uuid1(), game_id=UUID(game.game_id), user_id=UUID(request.user.pk), status=0, date_created=now, last_modified=now)
         member.save()
-        members_added[request.user.pk] = now 
+        members_added[member.game_member_id] = now 
 
         serialized = GameSerializer(game).data
         serialized['game_members'] = members_added
