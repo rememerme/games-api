@@ -12,6 +12,7 @@ from rememerme.games.rest.exceptions import InvalidWinningScore, GameNotFound,\
     BadRequestException
 from rememerme.games.serializers import GameSerializer
 from uuid import UUID
+import uuid
 from pycassa.cassandra.ttypes import NotFoundException as CassaNotFoundException
 import datetime
 import json
@@ -60,23 +61,31 @@ class GamesPostForm(forms.Form):
         '''
             Submits this form to create the given game.
         '''
+        game_members = self.cleaned_data['game_members']
+        del self.cleaned_data['game_members']
+        self.cleaned_data['leader_id'] = UUID(request.user.pk)
+        #self.cleaned_data['current_round_id'] = uuid.uuid1()
         game = Game.fromMap(self.cleaned_data)
         game.save()
         
         members_added = {}
         
-        for mem in self.cleaned_data['game_members']:
+        for mem in game_members:
             try:
                 mem = str(UUID(mem))
                 UserClient(request.auth).get(mem)
                 # user exists so let's add him/her
                 now = datetime.datetime.now()
-                member = GameMember(game_id=game.game_id, user_id=mem, status=0, date_created=now, last_modified=now)
+                member = GameMember(game_id=UUID(game.game_id), user_id=UUID(mem), status=0, date_created=now, last_modified=now)
                 member.save()
                 members_added[member.game_member_id] = now
             except ValueError, UserClientError:
                 continue
-        
+       
+        member = GameMember(game_id=UUID(game.game_id), user_id=UUID(request.user.pk), status=0, date_created=now, last_modified=now)
+        member.save()
+        members_added[request.user.pk] = now 
+
         serialized = GameSerializer(game).data
         serialized['game_members'] = members_added
         return serialized

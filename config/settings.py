@@ -39,7 +39,7 @@ INSTALLED_APPS = (
     'rest_framework',
     'rest_framework_swagger',
     'rememerme.games.rest.games',
-    'rememerme.games.rest.round'
+    #'rememerme.games.rest.round'
 )
 
 REST_FRAMEWORK = {
