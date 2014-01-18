@@ -7,26 +7,26 @@ class BadRequestException(APIException):
     status_code = 400
     detail = "A Bad Request was made for the API. Revise input parameters."
     
-class RequestsListNotFoundException(APIException):
+class InvalidWinningScore(APIException):
     '''
-        The requested friends list was not found.
+        The winning score was not greater than 0.
+    '''
+    status_code = 400
+    detail = "You can't setup a game if the score doesn't make sense."
+
+class PartyNotFound(APIException):
+    '''
+        The party does not exist.
     '''
     status_code = 404
-    detail = "The user is a total loser and has no friends. Please be more social."
+    detail = "Did you actually create the party? You minx, you."
 
-class AlreadyFriendsException(APIException):
+class GameNotFound(APIException):
     '''
-        The user requested to be a friend is already a friend.
+        The game requested was not found.
     '''
-    status_code = 400
-    detail = "The user is already your friend. Why you friending him again?"
-
-class RequestAlreadySentException(APIException):
-    '''
-        The user has already sent a friend request to a specific user.
-    '''
-    status_code = 400
-    detail = "Dude. You already sent a request. Call'm if you want to be friends so bad. Jeez."
+    status_code = 404
+    detail = "Don't ask about that game because we have no idea what you are talking about."
 
 class UserNotFoundException(APIException):
     '''

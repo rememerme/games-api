@@ -7,38 +7,97 @@
     @author: Andrew Oberlin, Jake Gregg
 '''
 from django import forms
-from rememerme.games.models import Game
-from rememerme.games.rest.exceptions import GameNotFoundException
-from rememerme.games.serializers import GamesSerializer
+from rememerme.games.models import Game, GameMember
+from rememerme.games.rest.exceptions import InvalidWinningScore, GameNotFound,\
+    BadRequestException
+from rememerme.games.serializers import GameSerializer
 from uuid import UUID
 from pycassa.cassandra.ttypes import NotFoundException as CassaNotFoundException
 import datetime
+import json
+from rememerme.games.permissions import GamePermissions
+from rememerme.users.client import UserClient, UserClientError
+
+class GamesListGetForm(forms.Form):
+
+    def submit(self, request):
+        try:
+            game_memberships = GameMember.filterByUser(request.user.pk)
+            games = [Game.getByID(mem.game_id) for mem in game_memberships]
+        except CassaNotFoundException:
+            raise GameNotFound()
+        return GameSerializer(games, many=True).data
 
 '''
     Creates a new game instance.
 '''
 class GamesPostForm(forms.Form):
-    user_id = forms.CharField(required=True)
+    game_members = forms.CharField(required=True)
+    winning_score = forms.IntegerField(required=True)
 
-    '''
-        Overriding the clean method to add the default offset and limiting information.
-    '''
     def clean(self):
+        '''
+            Overriding the clean method to add the default offset and limiting information.
+        '''
+        now = datetime.datetime.now()
+        self.cleaned_data['date_created'] = now
+        self.cleaned_data['last_modified'] = now
+        
+        if self.cleaned_data['winning_score'] <= 0:
+            raise InvalidWinningScore()
+        
+        try:
+            self.cleaned_data['game_members'] = json.loads(self.cleaned_data['game_members'])
+            if not isinstance(self.cleaned_data['game_members'], list):
+                raise BadRequestException()
+        except ValueError:
+            raise BadRequestException()
+        
         return self.cleaned_data
     
-    '''
-        Submits this form to create the given game.
-    '''
+    
     def submit(self, request):
-        pass
+        '''
+            Submits this form to create the given game.
+        '''
+        game = Game.fromMap(self.cleaned_data)
+        game.save()
+        
+        members_added = {}
+        
+        for mem in self.cleaned_data['game_members']:
+            try:
+                mem = str(UUID(mem))
+                UserClient(request.auth).get(mem)
+                # user exists so let's add him/her
+                now = datetime.datetime.now()
+                member = GameMember(game_id=game.game_id, user_id=mem, status=0, date_created=now, last_modified=now)
+                member.save()
+                members_added[member.game_member_id] = now
+            except ValueError, UserClientError:
+                continue
+        
+        serialized = GameSerializer(game).data
+        serialized['game_members'] = members_added
+        return serialized
 
 class GamesSingleGetForm(forms.Form):
+    game_id = forms.CharField()
+    
     def clean(self):
+        try:
+            self.cleaned_data['game_id'] = str(UUID(self.cleaned_data['game_id']))
+        except ValueError:
+            raise GameNotFound()
         return self.cleaned_data
 
     def submit(self, request):
-        pass
-
-
+        try:
+            game = Game.getByID(self.cleaned_data['game_id'])
+            if not GamePermissions.has_object_permission(request, game):
+                raise GameNotFound()
+        except CassaNotFoundException:
+            raise GameNotFound()
+        return GameSerializer(game).data
 
 
