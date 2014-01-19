@@ -64,7 +64,6 @@ class GamesPostForm(forms.Form):
         game_members = self.cleaned_data['game_members']
         del self.cleaned_data['game_members']
         self.cleaned_data['leader_id'] = UUID(request.user.pk)
-        #self.cleaned_data['current_round_id'] = uuid.uuid1()
         game = Game.fromMap(self.cleaned_data)
         game.save()
         
@@ -76,13 +75,13 @@ class GamesPostForm(forms.Form):
                 UserClient(request.auth).get(mem)
                 # user exists so let's add him/her
                 now = datetime.datetime.now()
-                member = GameMember(game_member_id=uuid.uuid1(), game_id=UUID(game.game_id), user_id=UUID(mem), status=0, date_created=now, last_modified=now)
+                member = GameMember(game_member_id=str(uuid.uuid1()), game_id=UUID(game.game_id), user_id=UUID(mem), status=0, date_created=now, last_modified=now)
                 member.save()
                 members_added[member.game_member_id] = now
             except ValueError, UserClientError:
                 continue
        
-        member = GameMember(game_member_id=uuid.uuid1(), game_id=UUID(game.game_id), user_id=UUID(request.user.pk), status=0, date_created=now, last_modified=now)
+        member = GameMember(game_member_id=str(uuid.uuid1()), game_id=UUID(game.game_id), user_id=UUID(request.user.pk), status=0, date_created=now, last_modified=now)
         member.save()
         members_added[member.game_member_id] = now 
 
@@ -104,7 +103,7 @@ class GamesSingleGetForm(forms.Form):
         try:
             game = Game.getByID(self.cleaned_data['game_id'])
             if not GamePermissions.has_object_permission(request, game):
-                raise GameNotFound()
+                raise BadRequestException()
         except CassaNotFoundException:
             raise GameNotFound()
         return GameSerializer(game).data
