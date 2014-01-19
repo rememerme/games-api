@@ -11,12 +11,11 @@ from rememerme.games.models import Game, Round, GameMember, Nomination
 from rememerme.cards.models import PhraseCard, NominationCard
 from rememerme.games.rest.exceptions import NoCurrentRound,\
     GameNotFound, GameAlreadyStarted, AlreadyNominated, InvalidNominationCard
-from rememerme.games.serializers import RoundSerializer
+from rememerme.games.serializers import RoundSerializer, NominationSerializer
 from uuid import UUID
 from pycassa.cassandra.ttypes import NotFoundException as CassaNotFoundException
 import datetime
 import random
-from rememerme.cards.serializers import NominationSerializer
 from rememerme.games.permissions import GamePermissions
 from rest_framework.exceptions import PermissionDenied
 
@@ -58,7 +57,7 @@ class StartGameForm(forms.Form):
         
         now = datetime.datetime.now()
         
-        round = Round(selector_id=selector.game_member_id, phrase_card_id=PhraseCard.getRandom(self.cleaned_data['deck_id']).phrase_card_id,
+        round = Round(selector_id=selector.user_id, phrase_card_id=PhraseCard.getRandom(self.cleaned_data['deck_id']).phrase_card_id,
             game_id=game.game_id, date_created=now, last_modified=now)
         
         round.save()
