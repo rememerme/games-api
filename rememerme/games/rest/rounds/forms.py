@@ -7,96 +7,88 @@
     @author: Andrew Oberlin, Jake Gregg
 '''
 from django import forms
-from rememerme.friends.models import ReceivedRequests, Friends, SentRequests
-from rememerme.friends.rest.exceptions import UserNotFoundException, RequestNotFoundException
-from rememerme.friends.serializers import ReceivedRequestsSerializer, FriendsSerializer
+from rememerme.games.models import Game, Round, GameMember
+from rememerme.cards.models import PhraseCard
+from rememerme.games.rest.exceptions import RequestNotFoundException,\
+    GameNotFound, GameAlreadyStarted
+from rememerme.games.serializers import RoundSerializer
 from uuid import UUID
 from pycassa.cassandra.ttypes import NotFoundException as CassaNotFoundException
 import datetime
+import random
 
 '''
     Gets all friend requests recieved and returns them to the user.
 
     @return: A list of requests matching the query with the given offset/limit
 '''        
-class ReceivedGetListForm(forms.Form):
+class StartGameForm(forms.Form):
+    game_id = forms.CharField(required=True)
+    deck_id = forms.CharField(required=True)
+    
+    def clean(self):
+        cleaned_data = super(RoundForm, self).clean()
+        try:
+            cleaned_data['game_id'] = str(UUID(cleaned_data['game_id']))
+            cleaned_data['deck_id'] = str(UUID(cleaned_data['deck_id']))
+        except ValueError:
+            raise GameNotFound()
+        return cleaned_data
+    
+    
     '''
         Submits the form and returns the friend requests received for the user.
     '''
     def submit(self, request):
         try:
-            received = ReceivedRequests.getByID(request.user.pk)
+            game = Game.getByID(self.cleaned_data['game_id'])
+            if game.current_round_id:
+                raise GameAlreadyStarted()
         except CassaNotFoundException:
-            received = ReceivedRequests(user_id=request.user.pk, requests={})
+            raise GameNotFound()
+        
+        # select randomly from the game members
+        game_members = GameMember.filterByGame(game.game_id)
+        selector = random.choice(game_members)
+        
+        now = datetime.datetime.now()
+        
+        round = Round(selector_id=selector.game_member_id, phrase_card_id=PhraseCard.getRandom(self.cleaned_data['deck_id']).phrase_card_id,
+            game_id=game.game_id, date_created=now, last_modified=now)
+        
+        round.save()
+        
+        game.deck = self.cleaned_data['deck_id']
+        game.save()
 
-        return ReceivedRequestsSerializer(received).data
+        return RoundSerializer(round).data
     
 '''
     Accepts a friend request for a user.
 
     @return: Validation of accepting the request.
 '''
-class ReceivedPutForm(forms.Form):
-    user_id = forms.CharField(required=True)
+class RoundForm(forms.Form):
+    game_id = forms.CharField(required=True)
     
     def clean(self):
-        cleaned_data = super(ReceivedPutForm, self).clean()
+        cleaned_data = super(RoundForm, self).clean()
         try:
-            cleaned_data['user_id'] = str(UUID(cleaned_data['user_id']))
+            cleaned_data['game_id'] = str(UUID(cleaned_data['game_id']))
         except ValueError:
-            raise RequestNotFoundException()
+            raise GameNotFound()
         return cleaned_data
     
     def submit(self, request):
-        user_id = self.cleaned_data['user_id']
+        game_id = self.cleaned_data['game_id']
         
-        # get my received requests
         try:
-            received_requests = ReceivedRequests.getByID(request.user.pk)
+            game = Game.getByID(game_id)
+            round = Round.getByID(game.current_round_id)
         except CassaNotFoundException:
-            received_requests = ReceivedRequests(user_id=request.user.pk, requests={})
-            
-        try:
-            sent_requests = SentRequests.getByID(user_id)
-        except CassaNotFoundException:
-            sent_requests = SentRequests(user_id=request.user.pk, requests={})
+            raise GameNotFound()
         
-        # check to make sure that at least one of them saw the request at some point
-        # this will avoid phantom requests
-        stop = not sent_requests and not received_requests
-        stop2 = (sent_requests.requests and request.user.pk in sent_requests.requests)
-        stop2 = stop2 or (received_requests.requests and user_id in sent_requests.requests)
-        stop = stop or not stop2
-            
-        if stop:
-            raise RequestNotFoundException()
-            
-        
-        # the user accepted the friend request
-        # so we create a friendship then delete the request
-        try:
-            other_friends = Friends.getByID(user_id)
-        except CassaNotFoundException:
-            other_friends = Friends(user_id=user_id, friends_list={})
-        try:
-            my_friends = Friends.getByID(request.user.pk)
-        except CassaNotFoundException:
-            my_friends = Friends(user_id=request.user.pk, friends_list={})
-            
-        now = datetime.datetime.now().isoformat()
-        other_friends.friends_list[request.user.pk] = now
-        my_friends.friends_list[user_id] = now
-        
-        other_friends.save()
-        my_friends.save()
-        
-        del received_requests.requests[user_id]
-        del sent_requests.requests[request.user.pk]
-        
-        received_requests.save()
-        sent_requests.save()
-        
-        return FriendsSerializer(my_friends).data
+        return RoundSerializer(round).data
         
 
 '''
@@ -104,7 +96,7 @@ class ReceivedPutForm(forms.Form):
 
     @return: confirmation that the request was denied.
 '''
-class ReceivedDeleteForm(forms.Form):
+class NominationsGetForm(forms.Form):
     user_id = forms.CharField(required=True)
     
     def clean(self):
@@ -112,28 +104,55 @@ class ReceivedDeleteForm(forms.Form):
             self.cleaned_data['user_id'] = str(UUID(self.cleaned_data['user_id']))
             return self.cleaned_data
         except ValueError:
-            raise UserNotFoundException()
+            raise GameNotFound()
     
     '''
         Submits the form to deny the friend request.
     '''
     def submit(self, request):
-        user_id = self.cleaned_data['user_id']
-        
+        pass
+    
+
+'''
+    Denies a friend request for the user.
+
+    @return: confirmation that the request was denied.
+'''
+class NominationsPostForm(forms.Form):
+    user_id = forms.CharField(required=True)
+    
+    def clean(self):
         try:
-            received_requests = ReceivedRequests.getByID(request.user.pk)
-            del received_requests.requests[user_id]
-            received_requests.save()
-        except CassaNotFoundException:
-            pass
-            
+            self.cleaned_data['user_id'] = str(UUID(self.cleaned_data['user_id']))
+            return self.cleaned_data
+        except ValueError:
+            raise GameNotFound()
+    
+    '''
+        Submits the form to deny the friend request.
+    '''
+    def submit(self, request):
+        pass
+    
+'''
+    Denies a friend request for the user.
+
+    @return: confirmation that the request was denied.
+'''
+class SelectionForm(forms.Form):
+    user_id = forms.CharField(required=True)
+    
+    def clean(self):
         try:
-            sent_requests = SentRequests.getByID(user_id)
-            del sent_requests.requests[request.user.pk]
-            sent_requests.save()
-        except CassaNotFoundException:
-            pass
-        
-        return ReceivedRequestsSerializer(received_requests).data
+            self.cleaned_data['user_id'] = str(UUID(self.cleaned_data['user_id']))
+            return self.cleaned_data
+        except ValueError:
+            raise GameNotFound()
+    
+    '''
+        Submits the form to deny the friend request.
+    '''
+    def submit(self, request):
+        pass
     
         

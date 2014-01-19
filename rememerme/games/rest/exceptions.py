@@ -42,19 +42,12 @@ class GameMemberAlreadyExists(APIException):
     status_code = 404
     detail = "You've already invited him to the game! Be more needy!"
 
-class FriendsListNotFoundException(APIException):
+class GameAlreadyStarted(APIException):
     '''
-        The requested user was not found.
-    '''
-    status_code = 404
-    detail = "The user is a total loser and has no friends. Please be more social."  
-    
-class FriendNotFoundException(APIException):
-    '''
-        The requested friend was not found.
+        The game has already been started and will not be restarted.
     '''
     status_code = 404
-    detail = "The user should not try to talk to people he doesn't know."
+    detail = "The game has already begun."  
     
 class RequestNotFoundException(APIException):
     '''
