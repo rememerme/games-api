@@ -56,3 +56,16 @@ class NoCurrentRound(APIException):
     status_code = 404
     detail = "You have to start the game for that!"
     
+class AlreadyNominated(APIException):
+    '''
+        The player already made his nomination.
+    '''
+    status_code = 400
+    detail = "You already made your move. No takesies backsies mister!"
+    
+class InvalidNominationCard(APIException):
+    '''
+        The player submitted a card that is not real.
+    '''
+    status_code = 400
+    detail = "You provided a card that does not exist."
