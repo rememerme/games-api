@@ -7,17 +7,14 @@
     @author: Andrew Oberlin, Jake Gregg
 '''
 from django import forms
-from rememerme.games.models import Game, GameMember
+from rememerme.games.models import GameMember
 from rememerme.games.rest.exceptions import IllegalStatusCode, GameNotFound,\
-    BadRequestException, GameMemberNotFound
+    BadRequestException, GameMemberNotFound, GameMemberAlreadyExists
+from rest_framework.exceptions import PermissionDenied
 from rememerme.games.serializers import GameMemberSerializer
 from uuid import UUID
-import uuid
 from pycassa.cassandra.ttypes import NotFoundException as CassaNotFoundException
 import datetime
-import json
-from rememerme.games.permissions import GamePermissions
-from rememerme.users.client import UserClient, UserClientError
 
 class GameMembersPutForm(forms.Form):
     game_id = forms.CharField(required=True)
@@ -69,6 +66,11 @@ class GameMembersPostForm(forms.Form):
         except ValueError:
             raise BadRequestException()
         
+        now = datetime.datetime.now()
+        self.cleaned_data['date_created'] = now
+        self.cleaned_data['last_modified'] = now
+        self.cleaned_data['status'] = 1
+        
         return self.cleaned_data
     
     
@@ -77,15 +79,26 @@ class GameMembersPostForm(forms.Form):
             Submits this form to create the given game.
         '''
         members = GameMember.filterByGame(self.cleaned_data['game_id'])
-        member = None
+        them = None
+        me = None
         for m in members:
             if m.user_id == request.user.pk:
-                member = m
+                me = m
+            if m.user_id == self.cleaned_data['user_id']:
+                them = m
+                
+            if them and me:
                 break
-        if  member:
+        if them:
             raise GameMemberAlreadyExists()
-        GameMember()
-        return serialized
+        
+        if not me:
+            raise PermissionDenied()
+        
+        member = GameMember.fromMap(self.cleaned_data)
+        member.save()
+        
+        return GameMemberSerializer(member).data
 
 class GameMembersGetForm(forms.Form):
     game_id = forms.CharField()
@@ -99,11 +112,13 @@ class GameMembersGetForm(forms.Form):
 
     def submit(self, request):
         try:
-            game = Game.getByID(self.cleaned_data['game_id'])
-            if not GamePermissions.has_object_permission(request, game):
-                raise BadRequestException()
+            members = GameMember.filterByGame(self.cleaned_data['game_id'])
+            member_ids = set([m.user_id for m in members])
+            if not request.user.pk in member_ids:
+                raise PermissionDenied()
         except CassaNotFoundException:
             raise GameNotFound()
-        return GameSerializer(game).data
+        
+        return GameMemberSerializer(members, many=True).data
 
 
