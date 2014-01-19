@@ -15,9 +15,7 @@ class GameMembersView(APIView):
         '''
             Used to create a new friend request.
         '''
-        query = { q for q in request.QUERY_PARAMS }
-        query['game_id'] = game_id
-        form = GameMembersGetForm(query)
+        form = GameMembersGetForm({ 'game_id' : game_id })
 
         if form.is_valid():
             return Response(form.submit(request))
@@ -28,7 +26,7 @@ class GameMembersView(APIView):
         '''
             Used to create a new friend request.
         '''
-        query = { q for q in request.DATA }
+        query = { key : requests.DATA[key] for key in request.DATA }
         query['game_id'] = game_id
         form = GameMembersPostForm(query)
 
@@ -41,7 +39,7 @@ class GameMembersView(APIView):
         '''
             Change the state of a game member in the game.
         '''
-        query = { q for q in request.DATA }
+        query = { key : request.DATA[key] for key  in request.DATA }
         query['game_id'] = game_id
         form = GameMembersPutForm(query)
 

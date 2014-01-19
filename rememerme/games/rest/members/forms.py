@@ -29,7 +29,7 @@ class GameMembersPutForm(forms.Form):
         if self.cleaned_data['status'] < 0 or self.cleaned_data['status'] > 2:
             raise IllegalStatusCode()
         
-        return self.cleaned_data['status']
+        return self.cleaned_data
 
     def submit(self, request):
         try:
@@ -37,7 +37,7 @@ class GameMembersPutForm(forms.Form):
             members = GameMember.filterByGame(self.cleaned_data['game_id'])
             member = None
             for m in members:
-                if m.user_id == request.user.pk:
+                if str(m.user_id) == request.user.pk:
                     member = m
                     break
             if not member:
@@ -82,9 +82,9 @@ class GameMembersPostForm(forms.Form):
         them = None
         me = None
         for m in members:
-            if m.user_id == request.user.pk:
+            if str(m.user_id) == request.user.pk:
                 me = m
-            if m.user_id == self.cleaned_data['user_id']:
+            if str(m.user_id) == self.cleaned_data['user_id']:
                 them = m
                 
             if them and me:
@@ -113,8 +113,8 @@ class GameMembersGetForm(forms.Form):
     def submit(self, request):
         try:
             members = GameMember.filterByGame(self.cleaned_data['game_id'])
-            member_ids = set([m.user_id for m in members])
-            if not request.user.pk in member_ids:
+            member_ids = set([str(m.user_id) for m in members])
+            if request.user.pk not in member_ids:
                 raise PermissionDenied()
         except CassaNotFoundException:
             raise GameNotFound()
