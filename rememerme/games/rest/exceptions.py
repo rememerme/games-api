@@ -49,10 +49,10 @@ class GameAlreadyStarted(APIException):
     status_code = 404
     detail = "The game has already begun."  
     
-class RequestNotFoundException(APIException):
+class NoCurrentRound(APIException):
     '''
-        The request does not exist between the two users.
+        The game does not have a current round.
     '''
     status_code = 404
-    detail = "They never tried to be your friend. So why do you care so much?"
+    detail = "You have to start the game for that!"
     

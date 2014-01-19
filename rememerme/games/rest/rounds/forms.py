@@ -84,9 +84,15 @@ class RoundForm(forms.Form):
         
         try:
             game = Game.getByID(game_id)
-            round = Round.getByID(game.current_round_id)
         except CassaNotFoundException:
             raise GameNotFound()
+        
+        try:
+            if not game.current_round_id:
+                raise NoCurrentRound()
+            round = Round.getByID(game.current_round_id)
+        except CassaNotFoundException:
+            raise NoCurrentRound()
         
         return RoundSerializer(round).data
         
