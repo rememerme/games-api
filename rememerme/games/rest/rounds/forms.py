@@ -9,7 +9,7 @@
 from django import forms
 from rememerme.games.models import Game, Round, GameMember
 from rememerme.cards.models import PhraseCard
-from rememerme.games.rest.exceptions import RequestNotFoundException,\
+from rememerme.games.rest.exceptions import NoCurrentRound,\
     GameNotFound, GameAlreadyStarted
 from rememerme.games.serializers import RoundSerializer
 from uuid import UUID
@@ -27,13 +27,12 @@ class StartGameForm(forms.Form):
     deck_id = forms.CharField(required=True)
     
     def clean(self):
-        cleaned_data = super(RoundForm, self).clean()
         try:
-            cleaned_data['game_id'] = str(UUID(cleaned_data['game_id']))
-            cleaned_data['deck_id'] = str(UUID(cleaned_data['deck_id']))
+            self.cleaned_data['game_id'] = str(UUID(self.cleaned_data['game_id']))
+            self.cleaned_data['deck_id'] = str(UUID(self.cleaned_data['deck_id']))
         except ValueError:
             raise GameNotFound()
-        return cleaned_data
+        return self.cleaned_data
     
     
     '''
