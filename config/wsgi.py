@@ -19,6 +19,7 @@ sys.path.append('/env/friends/games-api')
 sys.path.append('/env/friends/games-model')
 sys.path.append('/env/friends/sessions-model')
 sys.path.append('/env/friends/users-model')
+sys.path.append('/env/friends/cards-model')
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
