@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rememerme.games.rest.games.forms import GamesPostForm, GamesListGetForm, GamesSingleGetForm
+from rememerme.games.rest.games.forms import GameRequestsForm, GamesPostForm, GamesListGetForm, GamesSingleGetForm
 from rememerme.games.rest.exceptions import BadRequestException
 from rest_framework.permissions import IsAuthenticated
 
