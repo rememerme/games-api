@@ -83,3 +83,10 @@ class InvalidNominationCard(APIException):
     '''
     status_code = 400
     detail = "You provided a card that does not exist."
+    
+class PhraseCardNotFound(APIException):
+    '''
+        The player submitted a card that is not real.
+    '''
+    status_code = 404
+    detail = "That phrase card that does not exist."
