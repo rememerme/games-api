@@ -10,7 +10,7 @@ from django import forms
 from rememerme.games.models import Game, GameMember
 from rememerme.games.rest.exceptions import InvalidWinningScore, GameNotFound,\
     BadRequestException
-from rememerme.games.serializers import GameSerializer
+from rememerme.games.serializers import GameSerializer, GameMemberSerializer
 from uuid import UUID
 import uuid
 from pycassa.cassandra.ttypes import NotFoundException as CassaNotFoundException
@@ -75,13 +75,13 @@ class GamesPostForm(forms.Form):
                 UserClient(request.auth).get(mem)
                 # user exists so let's add him/her
                 now = datetime.datetime.now()
-                member = GameMember(game_member_id=str(uuid.uuid1()), game_id=UUID(game.game_id), user_id=UUID(mem), status=0, date_created=now, last_modified=now)
+                member = GameMember(game_member_id=str(uuid.uuid1()), game_id=UUID(game.game_id), user_id=UUID(mem), status=1, date_created=now, last_modified=now)
                 member.save()
                 members_added[member.game_member_id] = now
             except ValueError, UserClientError:
                 continue
        
-        member = GameMember(game_member_id=str(uuid.uuid1()), game_id=UUID(game.game_id), user_id=UUID(request.user.pk), status=0, date_created=now, last_modified=now)
+        member = GameMember(game_member_id=str(uuid.uuid1()), game_id=UUID(game.game_id), user_id=UUID(request.user.pk), status=1, date_created=now, last_modified=now)
         member.save()
         members_added[member.game_member_id] = now 
 
@@ -108,4 +108,12 @@ class GamesSingleGetForm(forms.Form):
             raise GameNotFound()
         return GameSerializer(game).data
 
+class GameRequestsForm(forms.Form):
+    def submit(self, request):
+        requests = [gm for gm in GameMember.filterByUser(request.user.pk) if gm.status == 1]
+        return GameMemberSerializer(requests, many=True).data
+        
+        
+        
+        
 

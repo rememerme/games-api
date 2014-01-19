@@ -46,3 +46,20 @@ class GamesSingleView(APIView):
             return Response(form.submit(request))
         else:
             raise BadRequestException()
+        
+class GameRequestView(APIView):
+    permission_classes = (IsAuthenticated, )
+    
+    def get(self, request):
+        '''
+            Short cut for viewing a user's game requests, which are
+            defined as Games to which he/she is a member with status
+            PENDING or 1.
+        '''
+        form = GameRequestsForm(request.QUERY_PARAMS)
+
+        if form.is_valid():
+            return Response(form.submit(request))
+        else:
+            raise BadRequestException()
+        

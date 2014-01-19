@@ -14,12 +14,12 @@ class InvalidWinningScore(APIException):
     status_code = 400
     detail = "You can't setup a game if the score doesn't make sense."
 
-class PartyNotFound(APIException):
+class IllegalStatusCode(APIException):
     '''
-        The party does not exist.
+        The code for the game member status is out of range.
     '''
-    status_code = 404
-    detail = "Did you actually create the party? You minx, you."
+    status_code = 40
+    detail = "The code for the game member status is out of range."
 
 class GameNotFound(APIException):
     '''
@@ -28,19 +28,19 @@ class GameNotFound(APIException):
     status_code = 404
     detail = "Don't ask about that game because we have no idea what you are talking about."
 
-class UserNotFoundException(APIException):
+class GameMemberNotFound(APIException):
     '''
-        The user is not part of the system.
+        The game member was not found
     '''
     status_code = 404
-    detail = "You are not apparently part of the system."
+    detail = "You are not apparently part of this game or something."
 
-class NotImplementedException(APIException):
+class GameMemberAlreadyExists(APIException):
     '''
-        The API method was not implemented yet.
+        Game Memberalready exists.
     '''
     status_code = 404
-    detail = "This API method has not been implemented"
+    detail = "You've already invited him to the game! Be more needy!"
 
 class FriendsListNotFoundException(APIException):
     '''
