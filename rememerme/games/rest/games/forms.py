@@ -81,7 +81,7 @@ class GamesPostForm(forms.Form):
             except ValueError, UserClientError:
                 continue
        
-        member = GameMember(game_member_id=str(uuid.uuid1()), game_id=UUID(game.game_id), user_id=UUID(request.user.pk), status=2, date_created=now, last_modified=now)
+        member = GameMember(game_member_id=str(uuid.uuid1()), score=0, game_id=UUID(game.game_id), user_id=UUID(request.user.pk), status=2, date_created=now, last_modified=now)
         member.save()
         members_added[member.game_member_id] = now 
 

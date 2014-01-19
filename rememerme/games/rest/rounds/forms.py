@@ -9,8 +9,8 @@
 from django import forms
 from rememerme.games.models import Game, Round, GameMember, Nomination
 from rememerme.cards.models import PhraseCard, NominationCard
-from rememerme.games.rest.exceptions import NoCurrentRound,\
-    GameNotFound, GameAlreadyStarted, AlreadyNominated, InvalidNominationCard
+from rememerme.games.rest.exceptions import NoCurrentRound, RoundNotFound, \
+    GameNotFound, GameAlreadyStarted, AlreadyNominated, InvalidNominationCard, NotTheSelector
 from rememerme.games.serializers import RoundSerializer, NominationSerializer
 from uuid import UUID
 from pycassa.cassandra.ttypes import NotFoundException as CassaNotFoundException
@@ -185,11 +185,13 @@ class NominationsPostForm(forms.Form):
     @return: confirmation that the request was denied.
 '''
 class SelectionForm(forms.Form):
-    user_id = forms.CharField(required=True)
+    game_id = forms.CharField(required=True)
+    selection_id = forms.CharField(required=True)
     
     def clean(self):
         try:
-            self.cleaned_data['user_id'] = str(UUID(self.cleaned_data['user_id']))
+            self.cleaned_data['game_id'] = str(UUID(self.cleaned_data['game_id']))
+            self.cleaned_data['selection_id'] = str(UUID(self.cleaned_data['selection_id']))
             return self.cleaned_data
         except ValueError:
             raise GameNotFound()
@@ -198,6 +200,63 @@ class SelectionForm(forms.Form):
         Submits the form to deny the friend request.
     '''
     def submit(self, request):
-        pass
-    
+        try:
+            game = Game.getByID(self.cleaned_data['game_id'])
+        except CassaNotFoundException:
+            raise GameNotFound()
+        
+        if not GamePermissions.has_object_permission(request, game):
+            raise PermissionDenied()
+        
+        if not game.current_round_id:
+            raise NoCurrentRound()
+        try:
+            round = Round.getByID(game.current_round_id)
+        except CassaNotFoundException:
+            raise RoundNotFound()
+        
+        if request.user.pk != str(round.selector_id):
+            raise NotTheSelector()
+        
+        try:
+            nomination = Nomination.getByID(self.cleaned_data['selection_id'])
+        except CassaNotFoundException:
+            raise InvalidNominationCard()
+        
+        round.selection_id = self.cleaned_data['selection_id']
+        round.save()
+        
+        game_members = GameMember.filterByGame(game.game_id)
+        # finds the game state that should be updated
+        member = None
+        for m in game_members:
+            if str(m.user_id) == str(nomination.nominator_id):
+                member = m
+                break
+        
+        member.score += 10
+        member.save()
+        
+        # creates a new round, saves it and the game
+        now = datetime.datetime.now()
+        selector = random.choice(game_members)
+        
+        new_round = Round(selector_id=selector.user_id, phrase_card_id=PhraseCard.getRandom(game.deck).phrase_card_id,
+            game_id=game.game_id, date_created=now, last_modified=now)
+        
+        new_round.save()
+        
+        game.current_round_id = new_round.round_id
+        game.save()
+        
+        return RoundSerializer(new_round).data
+        
+        
+        
+        
+        
+        
+        
+        
+        
         

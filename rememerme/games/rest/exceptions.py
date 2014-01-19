@@ -27,6 +27,20 @@ class GameNotFound(APIException):
     '''
     status_code = 404
     detail = "Don't ask about that game because we have no idea what you are talking about."
+    
+class RoundNotFound(APIException):
+    '''
+        The round requested was not found.
+    '''
+    status_code = 404
+    detail = "That round doesn't seem to be a thing."
+    
+class NotTheSelector(APIException):
+    '''
+        The user tried to select without being the selector.
+    '''
+    status_code = 400
+    detail = "Wait your turn to select."
 
 class GameMemberNotFound(APIException):
     '''
